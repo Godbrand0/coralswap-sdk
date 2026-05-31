@@ -1,6 +1,55 @@
 import { TradeType } from "./common";
 
 /**
+ * Filter parameters for querying historical swap events.
+ *
+ * At least one of `pairAddress` or `userAddress` should be provided for
+ * meaningful results. When both are given they are ANDed together.
+ * Ledger range defaults to the last 1000 ledgers when omitted.
+ */
+export interface SwapHistoryFilter {
+  /** Pair contract address to filter swaps by pool. */
+  pairAddress?: string;
+  /** Sender address to filter swaps by user. */
+  userAddress?: string;
+  /** Inclusive start ledger (defaults to currentLedger - 1000). */
+  fromLedger?: number;
+  /** Inclusive end ledger (defaults to currentLedger). */
+  toLedger?: number;
+  /** Maximum number of results to return (defaults to 200). */
+  limit?: number;
+}
+
+/**
+ * A historical swap event returned by getSwapHistory().
+ *
+ * Combines on-chain event data with the transaction and ledger context
+ * in which the swap occurred.
+ */
+export interface SwapHistoryEvent {
+  /** Transaction hash of the swap. */
+  txHash: string;
+  /** Amount of input token provided (in token's smallest unit). */
+  amountIn: bigint;
+  /** Amount of output token received (in token's smallest unit). */
+  amountOut: bigint;
+  /** Contract address of the input token. */
+  tokenIn: string;
+  /** Contract address of the output token. */
+  tokenOut: string;
+  /** Address of the account that initiated the swap. */
+  sender: string;
+  /** Pair contract address where the swap occurred. */
+  pairAddress: string;
+  /** Ledger sequence number in which the swap was confirmed. */
+  ledger: number;
+  /** Unix timestamp (seconds) of the ledger close. */
+  timestamp: number;
+  /** Fee charged for this swap in basis points. */
+  feeBps: number;
+}
+
+/**
  * Swap request parameters.
  *
  * If `path` is provided with 3+ tokens, the swap is routed through
