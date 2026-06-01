@@ -7,7 +7,7 @@ import {
 } from "@/types/liquidity";
 import { LPPosition } from "@/types/pool";
 import { PRECISION } from "@/config";
-import { TransactionError, ValidationError } from "@/errors";
+import { TransactionError, ValidationError, PairNotFoundError } from "@/errors";
 import {
   validateAddress,
   validatePositiveAmount,
@@ -224,7 +224,14 @@ export class LiquidityModule {
    * const pos = await client.liquidity.getPosition('C...', 'C...');
    */
   async getPosition(pairAddress: string, owner: string): Promise<LPPosition> {
+    // Verify that the provided pair address matches the tokens registered in the factory
     const pair = this.client.pair(pairAddress);
+    const tokens = await pair.getTokens();
+    const canonical = await this.client.getPairAddress(tokens.token0, tokens.token1);
+    if (canonical !== pairAddress) {
+      throw new PairNotFoundError(tokens.token0, tokens.token1);
+    }
+
     const reserves = await pair.getReserves();
 
     // Retrieve LP token address from cache or fetch from pair contract
@@ -241,13 +248,10 @@ export class LiquidityModule {
       lpClient.totalSupply(),
     ]);
 
-    const share =
-      totalSupply > 0n ? Number((balance * 10000n) / totalSupply) / 10000 : 0;
+    const share = totalSupply > 0n ? Number((balance * 10000n) / totalSupply) / 10000 : 0;
 
-    const token0Amount =
-      totalSupply > 0n ? (reserves.reserve0 * balance) / totalSupply : 0n;
-    const token1Amount =
-      totalSupply > 0n ? (reserves.reserve1 * balance) / totalSupply : 0n;
+    const token0Amount = totalSupply > 0n ? (reserves.reserve0 * balance) / totalSupply : 0n;
+    const token1Amount = totalSupply > 0n ? (reserves.reserve1 * balance) / totalSupply : 0n;
 
     return {
       pairAddress,
