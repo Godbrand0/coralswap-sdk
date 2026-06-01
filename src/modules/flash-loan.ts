@@ -1,5 +1,4 @@
 import { CoralSwapClient } from "@/client";
-import { DEFAULTS } from "@/config";
 import {
   FlashLoanRequest,
   FlashLoanResult,
