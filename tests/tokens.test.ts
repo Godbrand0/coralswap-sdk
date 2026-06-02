@@ -1,6 +1,7 @@
+import { Account, nativeToScVal, xdr } from '@stellar/stellar-sdk';
 import { TokenListModule } from '../src/modules/tokens';
 import { Network } from '../src/types/common';
-import { ValidationError, NetworkError } from '../src/errors';
+import { ValidationError, NetworkError, TokenFetchError } from '../src/errors';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -288,6 +289,112 @@ describe('TokenListModule', () => {
 
       const list = await mod.fetchAll('https://example.com/tokens.json');
       expect(list.tokens).toHaveLength(3);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // getBalance() / getAllowance() — mocked Soroban RPC
+  // -------------------------------------------------------------------------
+
+  describe('on-chain reads', () => {
+    const TOKEN = 'CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC';
+    const OWNER = 'GCZ3MMWYSKUXJL7BG4TLZBRPKJKUAVUH6GMJFSIKHLHAZ4F72ZBLO3DQ';
+    const SPENDER = 'GC3LNOLW6C4LMFW57RADS3JLF44LRIUQ2VOHC5JZYS2YH2RVRYPAJUHF';
+
+    const i128Val = (n: bigint): xdr.ScVal => nativeToScVal(n, { type: 'i128' });
+
+    function makeClient(server: Record<string, jest.Mock>) {
+      return {
+        network: Network.TESTNET,
+        networkConfig: {
+          networkPassphrase: 'Test SDF Network ; September 2015',
+        },
+        // Disable retries so failure-path tests run fast.
+        config: { maxRetries: 0, retryDelayMs: 0 },
+        server: {
+          getAccount: jest
+            .fn()
+            .mockResolvedValue(new Account(SPENDER, '0')),
+          simulateTransaction: jest.fn(),
+          ...server,
+        },
+      } as any;
+    }
+
+    describe('getBalance', () => {
+      it('returns the decoded i128 balance', async () => {
+        const client = makeClient({
+          simulateTransaction: jest.fn().mockResolvedValue({
+            transactionData: {}, result: { retval: i128Val(1_500_000n) },
+          }),
+        });
+        const tokens = new TokenListModule(client);
+
+        const balance = await tokens.getBalance(TOKEN, OWNER);
+        expect(balance).toBe(1_500_000n);
+        expect(client.server.getAccount).toHaveBeenCalled();
+        expect(client.server.simulateTransaction).toHaveBeenCalled();
+      });
+
+      it('returns 0n when the simulation has no return value', async () => {
+        const client = makeClient({
+          simulateTransaction: jest.fn().mockResolvedValue({ transactionData: {}, result: null }),
+        });
+        const tokens = new TokenListModule(client);
+
+        expect(await tokens.getBalance(TOKEN, OWNER)).toBe(0n);
+      });
+
+      it('wraps simulation failures in TokenFetchError', async () => {
+        const client = makeClient({
+          simulateTransaction: jest.fn().mockResolvedValue({
+            error: 'contract trapped',
+          }),
+        });
+        const tokens = new TokenListModule(client);
+
+        await expect(tokens.getBalance(TOKEN, OWNER)).rejects.toThrow(
+          TokenFetchError,
+        );
+      });
+
+      it('wraps RPC errors in TokenFetchError', async () => {
+        const client = makeClient({
+          getAccount: jest.fn().mockRejectedValue(new Error('RPC down')),
+        });
+        const tokens = new TokenListModule(client);
+
+        await expect(tokens.getBalance(TOKEN, OWNER)).rejects.toThrow(
+          TokenFetchError,
+        );
+      });
+    });
+
+    describe('getAllowance', () => {
+      it('returns the decoded i128 allowance', async () => {
+        const client = makeClient({
+          simulateTransaction: jest.fn().mockResolvedValue({
+            transactionData: {}, result: { retval: i128Val(42n) },
+          }),
+        });
+        const tokens = new TokenListModule(client);
+
+        const allowance = await tokens.getAllowance(TOKEN, OWNER, SPENDER);
+        expect(allowance).toBe(42n);
+      });
+
+      it('wraps simulation failures in TokenFetchError', async () => {
+        const client = makeClient({
+          simulateTransaction: jest
+            .fn()
+            .mockResolvedValue({ error: 'no such function' }),
+        });
+        const tokens = new TokenListModule(client);
+
+        await expect(
+          tokens.getAllowance(TOKEN, OWNER, SPENDER),
+        ).rejects.toThrow(TokenFetchError);
+      });
     });
   });
 });

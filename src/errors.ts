@@ -173,6 +173,16 @@ export class CircuitBreakerError extends CoralSwapSDKError {
 }
 
 /**
+ * Failure while fetching on-chain token data (balance, allowance) via RPC.
+ */
+export class TokenFetchError extends CoralSwapSDKError {
+  constructor(message: string, details?: Record<string, unknown>) {
+    super("TOKEN_FETCH_ERROR", message, details);
+    this.name = "TokenFetchError";
+  }
+}
+
+/**
  * No signing key configured.
  */
 export class SignerError extends CoralSwapSDKError {
