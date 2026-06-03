@@ -215,52 +215,92 @@ function mapContractError(
   code: number,
   err: unknown,
 ): CoralSwapSDKError | null {
+  const message = ErrorParser.parseContractError(code);
+
   // Core pair contract errors (100-113)
   switch (code) {
-    case 100: // Invalid token pair
-      return new ValidationError("Invalid token pair", { contractErrorCode: code });
+    case 100: // Invalid token pair / AlreadyInitialized
+      return new ValidationError(message || "Invalid token pair", {
+        contractErrorCode: code,
+      });
     case 101: // Insufficient liquidity
-      return new InsufficientLiquidityError(extractPairAddress(err), { contractErrorCode: code });
+      return new InsufficientLiquidityError(extractPairAddress(err), {
+        contractErrorCode: code,
+        message,
+      });
     case 102: // Slippage exceeded
-      return new SlippageError(0n, 0n, 0, { contractErrorCode: code });
+      return new SlippageError(0n, 0n, 0, {
+        contractErrorCode: code,
+        message,
+      });
     case 103: // Deadline exceeded
       return new DeadlineError(0);
     case 104: // Invalid amount
-      return new ValidationError("Invalid amount", { contractErrorCode: code });
+      return new ValidationError(message || "Invalid amount", {
+        contractErrorCode: code,
+      });
     case 105: // Insufficient input amount
-      return new ValidationError("Insufficient input amount", { contractErrorCode: code });
+      return new ValidationError(message || "Insufficient input amount", {
+        contractErrorCode: code,
+      });
     case 106: // Reentrancy detected
-      return new FlashLoanError("Reentrancy detected", { contractErrorCode: code });
+      return new FlashLoanError("Reentrancy detected", {
+        contractErrorCode: code,
+      });
     case 107: // Flash loan callback failed
-      return new FlashLoanError("Flash loan callback failed", { contractErrorCode: code });
+      return new FlashLoanError("Flash loan callback failed", {
+        contractErrorCode: code,
+      });
     case 108: // Flash loan repayment insufficient
-      return new FlashLoanError("Flash loan repayment insufficient", { contractErrorCode: code });
-    case 109: // Circuit breaker
+      return new FlashLoanError("Flash loan repayment insufficient", {
+        contractErrorCode: code,
+      });
+    case 109: // Circuit breaker / paused
       return new CircuitBreakerError(extractPairAddress(err));
     case 110: // Unauthorized
-      return new ValidationError("Unauthorized", { contractErrorCode: code });
+      return new ValidationError(message || "Unauthorized", {
+        contractErrorCode: code,
+      });
     case 111: // Invalid recipient
-      return new ValidationError("Invalid recipient", { contractErrorCode: code });
+      return new ValidationError(message || "Invalid recipient", {
+        contractErrorCode: code,
+      });
     case 112: // Overflow
-      return new ValidationError("Overflow", { contractErrorCode: code });
+      return new ValidationError(message || "Overflow", {
+        contractErrorCode: code,
+      });
     case 113: // K invariant violated
-      return new ValidationError("K invariant violated", { contractErrorCode: code });
+      return new ValidationError(message || "K invariant violated", {
+        contractErrorCode: code,
+      });
 
     // Router contract errors (300-306)
     case 300: // Pair not found
       return new PairNotFoundError("unknown", "unknown");
     case 301: // Invalid path
-      return new ValidationError("Invalid path", { contractErrorCode: code });
+      return new ValidationError(message || "Invalid swap path", {
+        contractErrorCode: code,
+      });
     case 302: // Slippage exceeded
-      return new SlippageError(0n, 0n, 0, { contractErrorCode: code });
+      return new SlippageError(0n, 0n, 0, {
+        contractErrorCode: code,
+        message,
+      });
     case 303: // Deadline exceeded
       return new DeadlineError(0);
     case 304: // Insufficient liquidity
-      return new InsufficientLiquidityError(extractPairAddress(err), { contractErrorCode: code });
+      return new InsufficientLiquidityError(extractPairAddress(err), {
+        contractErrorCode: code,
+        message,
+      });
     case 305: // Excessive input amount
-      return new ValidationError("Excessive input amount", { contractErrorCode: code });
+      return new ValidationError(message || "Excessive input amount", {
+        contractErrorCode: code,
+      });
     case 306: // Invalid token
-      return new ValidationError("Invalid token", { contractErrorCode: code });
+      return new ValidationError(message || "Invalid token", {
+        contractErrorCode: code,
+      });
 
     default:
       return null;

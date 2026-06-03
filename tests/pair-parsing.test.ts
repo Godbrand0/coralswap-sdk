@@ -12,14 +12,11 @@ describe("PairClient Parsing", () => {
   let mockSimulateTransaction: jest.SpyInstance;
 
   beforeEach(() => {
-    client = new PairClient(PAIR_ADDRESS, new SorobanRpc.Server(RPC_URL), NETWORK_PASSPHRASE, {
-      maxRetries: 1,
-      baseDelayMs: 100,
-      maxDelayMs: 1000,
-    });
+    const server = new SorobanRpc.Server(RPC_URL);
+
     client = new PairClient(
       PAIR_ADDRESS,
-      new SorobanRpc.Server(RPC_URL),
+      server,
       NETWORK_PASSPHRASE,
       {
         maxRetries: 1,

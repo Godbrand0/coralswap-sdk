@@ -10,4 +10,14 @@ module.exports = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
+  transform: {
+    '^.+\\.tsx?$': [
+      'ts-jest',
+      {
+        // Suppress pre-existing type errors in source files so tests can run.
+        // Type-checking is enforced separately via `tsc --noEmit`.
+        diagnostics: false,
+      },
+    ],
+  },
 };

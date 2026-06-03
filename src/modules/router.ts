@@ -1,6 +1,8 @@
 import { CoralSwapClient } from '@/client';
 import { TradeType } from '@/types/common';
 import { SwapQuote } from '@/types/swap';
+import { DEFAULTS, PRECISION } from '@/config';
+import type { SwapModule } from './swap';
 
 /**
  * Result of the pathfinding algorithm.
@@ -89,6 +91,9 @@ export class RouterModule {
             tradeType,
             path,
           });
+        } else if (tradeType === TradeType.EXACT_OUT) {
+          // getMultiHopQuote does not support EXACT_OUT — compute directly
+          quote = await this.buildExactOutMultiHopQuote(swapModule, path, amount);
         } else {
           quote = await swapModule.getMultiHopQuote({
             path,
@@ -113,6 +118,43 @@ export class RouterModule {
 
     this.pathCache.set(cacheKey, { result: bestPath, expiresAt: Date.now() + this.cacheTtlMs });
     return bestPath;
+  }
+
+  /**
+   * Build a SwapQuote for a multi-hop EXACT_OUT path using reverse hop computation.
+   *
+   * `getMultiHopQuote` only supports EXACT_IN. For EXACT_OUT multi-hop paths the
+   * router calls `computeHopsReverse` directly and assembles the quote here.
+   */
+  private async buildExactOutMultiHopQuote(
+    swapModule: SwapModule,
+    path: string[],
+    amountOut: bigint,
+  ): Promise<SwapQuote> {
+    const hops = await swapModule.computeHopsReverse(amountOut, path);
+
+    const amountIn = hops[0].amountIn;
+    const totalFeeAmount = hops.reduce((acc, h) => acc + h.feeAmount, 0n);
+    const totalFeeBps = hops.reduce((acc, h) => acc + h.feeBps, 0);
+    const compoundImpactBps = swapModule.compoundPriceImpact(hops.map((h) => h.priceImpactBps));
+
+    const slippageBps =
+      (this.client as any).config?.defaultSlippageBps ?? DEFAULTS.slippageBps;
+    const amountOutMin =
+      amountOut - (amountOut * BigInt(slippageBps)) / PRECISION.BPS_DENOMINATOR;
+
+    return {
+      tokenIn: path[0],
+      tokenOut: path[path.length - 1],
+      amountIn,
+      amountOut,
+      amountOutMin,
+      priceImpactBps: compoundImpactBps,
+      feeBps: totalFeeBps,
+      feeAmount: totalFeeAmount,
+      path,
+      deadline: (this.client as any).getDeadline?.() ?? Math.floor(Date.now() / 1000) + DEFAULTS.deadlineSec,
+    };
   }
 
   /**

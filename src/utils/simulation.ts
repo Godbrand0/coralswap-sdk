@@ -90,7 +90,7 @@ export function getResourceEstimate(
 /**
  * Decode diagnostic events from a simulation response.
  *
- * SDK v12+ returns pre-decoded `xdr.DiagnosticEvent` objects on the
+ * SDK v12+ (stellar-sdk) returns pre-decoded `xdr.DiagnosticEvent` objects on the
  * `events` field of `SimulateTransactionSuccessResponse`. Older SDK
  * versions returned base64-encoded XDR strings. This function handles
  * both shapes so the codebase stays forward-compatible.
@@ -103,25 +103,26 @@ export function decodeDiagnosticEvents(
 ): SimulationDiagnosticEvent[] {
   if (!rawEvents || rawEvents.length === 0) return [];
 
-  return rawEvents.map((event): SimulationDiagnosticEvent => {
-    if (typeof event === 'string') {
+  return rawEvents.map((entry): SimulationDiagnosticEvent => {
+    if (typeof entry === 'string') {
+      // Legacy: base64-encoded XDR string
       try {
         return {
-          xdr: event,
-          decoded: xdr.DiagnosticEvent.fromXDR(event, 'base64'),
+          xdr: entry,
+          decoded: xdr.DiagnosticEvent.fromXDR(entry, 'base64'),
         };
       } catch {
-        return { xdr: event, decoded: null };
+        return { xdr: entry, decoded: null };
       }
-    } else {
-      try {
-        return {
-          xdr: event.toXDR('base64'),
-          decoded: event,
-        };
-      } catch {
-        return { xdr: '', decoded: event };
-      }
+    }
+    // Already a decoded DiagnosticEvent — serialise back to base64 for the xdr field
+    try {
+      return {
+        xdr: entry.toXDR('base64'),
+        decoded: entry,
+      };
+    } catch {
+      return { xdr: '', decoded: entry };
     }
   });
 }
@@ -168,7 +169,7 @@ export function buildSimulationResult(
     cost: ok.cost
       ? { cpuInsns: ok.cost.cpuInsns, memBytes: ok.cost.memBytes }
       : null,
-    transactionData: ok.transactionData?.build() ?? null,
+    transactionData: ok.transactionData ? ok.transactionData.build() : null,
     latestLedger: ok.latestLedger,
     events,
     error: null,

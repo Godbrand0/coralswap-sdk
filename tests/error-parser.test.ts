@@ -70,4 +70,14 @@ describe('SDK Error Mapping Integration', () => {
         const err = mapError('Error(Contract, #103)');
         expect(err).toBeInstanceOf(DeadlineError);
     });
+
+    it('maps Error(Contract, #105) to ValidationError (Insufficient input amount)', () => {
+        const err = mapError('Error(Contract, #105)');
+        expect(err).toBeInstanceOf(ValidationError);
+    });
+
+    it('maps Error(Contract, #111) to ValidationError (Invalid recipient)', () => {
+        const err = mapError('Error(Contract, #111)');
+        expect(err).toBeInstanceOf(ValidationError);
+    });
 });
