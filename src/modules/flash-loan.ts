@@ -185,7 +185,7 @@ export class FlashLoanModule {
           };
         }
       }
-    } catch (_err) {
+    } catch {
       // Silently ignore event parsing failures to avoid breaking the happy path
       // The transaction succeeded, but we couldn't decode the events
     }
